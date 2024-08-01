@@ -32,13 +32,15 @@ def extract_all_values_json_str(json_str):
     return series
 
 
-def extract_all_values_column(df, column, unpack_lists=True):
+def extract_all_values_column(df, column, unpack_lists=True, prefix=None, suffix=None):
     """Extract all values from a column containing JSON strings.
 
     Args:
         df (pd.DataFrame): DataFrame containing the column to extract values from.
         column (str): Column name containing JSON strings.
         unpack_lists (bool): Unpack lists into separate columns
+        prefix (str): Prefix to add to the column names.
+        suffix (str): Suffix to add to the column names.
     """
     df_extracted = df[column].apply(extract_all_values_json_str)
 
@@ -48,6 +50,13 @@ def extract_all_values_column(df, column, unpack_lists=True):
             if df_extracted[col].apply(lambda x: isinstance(x, list)).any():
                 df_extracted = df_extracted.join(unpack_series_with_lists(df_extracted, col))
                 df_extracted.drop(columns=col, inplace=True)
+
+    # add prefix and/or suffix to column names
+    if prefix:
+        df_extracted.columns = [f"{prefix}_{col}" for col in df_extracted.columns]
+    if suffix:
+        df_extracted.columns = [f"{col}_{suffix}" for col in df_extracted.columns]
+
     return df_extracted
 
 

@@ -3,16 +3,17 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 
+from explorer.visualization import format
 
-def plot_counts(data, columns=None, sup_title=None, fillna=True, max_cardinality=25):
-    """Plot counts of categorical columns.
+
+def plot_counts(data, columns=None, fillna=True, top_n=25, hue=None, title=None):
+    """Plot top counts of categorical columns, group remaining into 'Other'.
     
     Args:
         data (pd.DataFrame): data to plot.
         columns (list): columns to plot.
-        sup_title (str): super title of the plot.
         fillna (bool): fill missing values with 'NaN'.
-        max_cardinality (int): maximum cardinality of columns to plot.
+        top_n (int): number of top categories to display.
     """
     data = data.copy()
 
@@ -22,40 +23,32 @@ def plot_counts(data, columns=None, sup_title=None, fillna=True, max_cardinality
 
     if columns is None:
         columns = data.columns
-    
-    # filter columns with high cardinality
-    if max_cardinality:
-        # remove columns that exceed max cardinality
-        column_cardinality = data.nunique()
+    elif isinstance(columns, str):
+        columns = [columns]
+    else:
+        raise ValueError("columns must be a list or a string")
 
-         # warn user that columns won't be displayed
-        high_cardinality_cols = column_cardinality[column_cardinality > max_cardinality]
-        if high_cardinality_cols.any():
-            print(f"Columns with cardinality > {max_cardinality} will not be displayed:\n{high_cardinality_cols} ")
-        
-        # keep remaining columns
-        columns = [col for col in columns if col not in high_cardinality_cols]
-    
-
-    if len(columns) == 0:
-        print("No columns to plot")
-        return None
-    
-    print(f"Plotting counts for columns: {columns}")
-
-    # plot counts per column
-    fig, ax = plt.subplots(1, len(columns), figsize=(20, 5))
+    fig, ax = plt.subplots(len(columns), 1, figsize=(6, 8*len(columns)))
     for i, col in enumerate(columns):
+        top_categories = data[col].value_counts().index[:top_n].to_list()
+        # group remaining categories to other
+        data[col] = data[col].apply(lambda x: x if x in top_categories else 'Other')
+
+        # plot counts
         ax_i = ax[i] if len(columns) > 1 else ax
-        sns.countplot(data=data, x=col, ax=ax_i)
+        sns.countplot(data=data, y=col, hue=hue, ax=ax_i, dodge=False, order=top_categories + ['Other'], color=format.PALETTE_BLUE[2])
 
         # rotating x-axis labels for better readability
-        ax_i.tick_params(axis='x', labelrotation = 45)
+        ax_i.tick_params(axis='x', labelrotation=45)
 
-    if sup_title:
-        fig.suptitle(sup_title)
+        if i == 0:
+            title = title or "Counts per column"
+            ax_i.set_title(f"{title}")
+        ax_i.set_xlabel('')
 
-
-
+    sns.despine()
+    plt.tight_layout()
     plt.show()
     return ax
+
+
